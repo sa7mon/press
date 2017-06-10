@@ -1,3 +1,4 @@
+<pre>
       ########  ########  ########  ######   ######
       ##     ## ##     ## ##       ##    ## ##    ##
       ##     ## ##     ## ##       ##       ##
@@ -24,3 +25,4 @@ optional arguments:
                         Name of log file. Default: ./log.txt
   -t THREADS, --threads THREADS
                         Number of threads to use. Default: 10
+</pre>
